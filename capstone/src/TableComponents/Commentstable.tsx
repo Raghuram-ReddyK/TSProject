@@ -1,12 +1,7 @@
-import { DataGrid, GridColDef } from '@mui/x-data-grid';
-import axios from 'axios';
-import useSWR from 'swr';
+import { useState } from 'react';
 import { Box } from '@mui/material';
-
-const fetcher = (url: string) =>
-  axios.get(url).then(res => res.data).catch(err => err);
-
-const api = `https://dummyjson.com/products`;
+import useFetchComments from '../use-fetch-hooks/use-fetch-comments';
+import { DataGrid, GridColDef, GridSortModel } from '@mui/x-data-grid';
 
 const headers: GridColDef[] = [
   { field: 'title', headerName: 'Product Name', width: 200 },
@@ -19,12 +14,16 @@ const headers: GridColDef[] = [
 ];
 
 export default function Commentstable() {
-  const { data, error, isLoading } = useSWR(api, fetcher);
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(5);
+  const [sortModel, setSortModel] = useState<GridSortModel>([]);
 
-  if (isLoading) return <div>Loading...</div>;
-  if (error) return <div>Failed to load data</div>;
+  const sortField = sortModel[0]?.field || 'title';
+  const sortOrder = sortModel[0]?.sort || 'asc';
 
-  const rows = data?.products?.map((product: { id: any; title: any; description: any; brand: any; category: any; price: any; rating: any; stock: any; thumbnail: any; }) => ({
+  const { data, error, isLoading } = useFetchComments(sortField, sortOrder as 'asc' | 'desc', page + 1);
+
+  const rows = data?.products?.map((product: any) => ({
     id: product.id,
     title: product.title,
     description: product.description,
@@ -32,18 +31,30 @@ export default function Commentstable() {
     category: product.category,
     price: product.price,
     rating: product.rating,
-    stock: product.stock,
-    thumbnail: product.thumbnail
+    stock: product.stock
   })) || [];
+
+  if (isLoading) return <div>Loading...</div>;
+  if (error) return <div>Failed to load data</div>;
 
   return (
     <Box sx={{ height: 600, width: '100%' }}>
       <DataGrid
         rows={rows}
         columns={headers}
-        // pageSize={10}
-        // rowsPerPageOptions={[10, 20, 50]}
-        checkboxSelection={true}
+        rowCount={data?.total || 0}
+        paginationModel={{ page, pageSize }}
+        onPaginationModelChange={({ page, pageSize }) => {
+          setPage(page);
+          setPageSize(pageSize);
+        }}
+        sortModel={sortModel}
+        onSortModelChange={(model) => {
+          setSortModel(model);
+          setPage(0);
+        }}
+        checkboxSelection
+        pageSizeOptions={[5, 10, 25]}
         disableRowSelectionOnClick
       />
     </Box>
